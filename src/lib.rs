@@ -6,14 +6,23 @@ pub fn read_write_asm_file(input_file: String, output_file: String) -> Result<()
         Err(_) => return Err("Error reading input file. Does the file exist?"),
     };
 
-    match fs::write(output_file, disassemble(rom_bytes)) {
+    match fs::write(output_file, disassemble(rom_bytes)?) {
         Ok(_) => Ok(()),
         Err(_) => Err("Error writing output file. Is it being used by another process?"),
     }
 }
 
-fn disassemble(assembled_bytes: Vec<u8>) -> String {
-    assembled_bytes
+fn disassemble(assembled_bytes: Vec<u8>) -> Result<String, &'static str> {
+
+    // error handling
+    if assembled_bytes.is_empty() {
+        return Err("Error parsing rom: empty rom");
+    }
+    if assembled_bytes.len() % 2 != 0 {
+        return Err("Error parsing rom: uneven number of bytes");
+    }
+
+    let disassembled_string = assembled_bytes
         // group file bytes into pairs to parse 16-bit instructions
         .chunks(2)
         // convert iterator of u8 pairs to iterator of u16s
@@ -21,7 +30,7 @@ fn disassemble(assembled_bytes: Vec<u8>) -> String {
             if let [b1, b2] = chunk {
                 ((*b1 as u16) << 8) | (*b2 as u16)
             } else {
-                panic!("Error parsing file: uneven number of bytes");
+                unreachable!("We handle this possiblity earlier in the function and return an error")
             }
         })
         // convert instruction code to asm string
@@ -31,7 +40,9 @@ fn disassemble(assembled_bytes: Vec<u8>) -> String {
             acc.push_str(&inst);
             acc.push('\n');
             acc
-        })
+        });
+
+    Ok(disassembled_string)
 }
 
 fn convert_instruction(inst: u16) -> String {
