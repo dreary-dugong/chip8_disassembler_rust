@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "chip8_disassemble"
+name = "ch8disasm"
 version = "0.1.0"
