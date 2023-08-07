@@ -1,4 +1,4 @@
-# chi8disasm
+# ch8disasm
 
 A chip-8 disassembler command line utility written in rust
 
