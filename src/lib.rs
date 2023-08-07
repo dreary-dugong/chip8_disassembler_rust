@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 // clap parser for our arguments
 #[derive(Parser)]
+#[command(author, version, about, long_about = None)]
 struct Args {
     #[arg(short, long)]
     input: Option<PathBuf>,
