@@ -3,32 +3,38 @@ use std::fs;
 use std::io::{self, ErrorKind, Read, Write};
 use std::path::PathBuf;
 
-// clap parser for our arguments
+/// CLAP parser to handle CLI arguments and help page
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+    // input file. If empty, we use stdin
     #[arg(short, long)]
     input: Option<PathBuf>,
+    // output file. If empty, we use stdout
     #[arg(short, long)]
     output: Option<PathBuf>,
 }
 
+/// An enum for the app config that says whether it should read from a file or from stdin
 enum InputOption {
     File(PathBuf),
     Stdin,
 }
 
+/// An enum for the app config that says whether it should write to a file or to stdout
 enum OutputOption {
     File(PathBuf),
     Stdout,
 }
 
+/// A struct representing the configuration for the cli app. See enums above.
 pub struct Config {
     in_opt: InputOption,
     out_opt: OutputOption,
 }
 
 impl Config {
+    /// Automatically construct the app config based on the args passed to the binary
     pub fn make() -> Self {
         let args = Args::parse();
 
@@ -45,11 +51,14 @@ impl Config {
     }
 }
 
+/// A struct to represent an error that occured while running the app to be communicated back to the user via a
+/// message printed to stderr
 pub struct RunError {
     pub msg: &'static str,
 }
 
 impl From<io::Error> for RunError {
+    /// Convert io error to our RunError so we can use the ? operator
     fn from(e: io::Error) -> Self {
         let msg = match e.kind() {
             ErrorKind::NotFound => "File does not exist",
@@ -60,13 +69,17 @@ impl From<io::Error> for RunError {
 }
 
 impl From<&'static str> for RunError {
+    /// convert a simple static string slice error to a run error so we can use the ? operator
+    // Ideally, disassemble would return a custom error type instead of a static string but it really doesn't matter
     fn from(s: &'static str) -> Self {
         let msg = s;
         RunError { msg }
     }
 }
 
+/// Run the CLI app based on the config constructed and passed in by the main function
 pub fn run(config: Config) -> Result<(), RunError> {
+    // read rom bytes from file or stdin
     let rom_bytes = match config.in_opt {
         InputOption::File(p) => fs::read(p)?,
         InputOption::Stdin => {
@@ -75,7 +88,9 @@ pub fn run(config: Config) -> Result<(), RunError> {
             buf
         }
     };
+    // disassemble the bytes into a long string of instructions seperated by newlines
     let instructions = disassemble(rom_bytes)?;
+    // write the disassembled instructions to a file or stdout
     match config.out_opt {
         OutputOption::File(f) => fs::write(f, instructions)?,
         OutputOption::Stdout => {
@@ -85,8 +100,10 @@ pub fn run(config: Config) -> Result<(), RunError> {
     Ok(())
 }
 
+/// Given a vector of bytes from a rom, return a string of disassembled instructions separated by
+/// newlines
 fn disassemble(assembled_bytes: Vec<u8>) -> Result<String, &'static str> {
-    // error handling
+    // error handling; We handle these here so we don't need awkward pattern matching later
     if assembled_bytes.is_empty() {
         return Err("Error parsing rom: empty rom");
     }
@@ -119,7 +136,11 @@ fn disassemble(assembled_bytes: Vec<u8>) -> Result<String, &'static str> {
     Ok(disassembled_string)
 }
 
+/// Given a u16 representing an assembled chip8 instruction, return the human-readable string
+/// format of that instruction
+/// Instructions and format outlined at http://devernay.free.fr/hacks/chip8/C8TECH10.HTM
 fn convert_instruction(inst: u16) -> String {
+    // instructions with 16-bit opcodes and no arguments
     if inst == 0x00E0 {
         return String::from("CLS");
     }
@@ -133,7 +154,8 @@ fn convert_instruction(inst: u16) -> String {
     let addr = lower_twelve;
     if upper_four == 0 {
         return String::from("SYS 0x") + &format!("{:0>3X}", addr);
-    }
+    } // note that this interprets null bytes as SYS 0x000. Realistically this instruction is
+      // probably unused
     if upper_four == 1 {
         return String::from("JP 0x") + &format!("{:0>3X}", addr);
     }
@@ -260,5 +282,6 @@ fn convert_instruction(inst: u16) -> String {
         return String::from("LD V") + &format!("{:X}", x_arg) + ", [I]";
     }
 
+    // instruction not found, probably a bitmap graphic or other data
     String::from("ERR: ") + &format!("{:0>4X}", inst)
 }
