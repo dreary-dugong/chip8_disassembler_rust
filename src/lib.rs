@@ -1,19 +1,90 @@
-pub fn read_write_asm_file(input_file: String, output_file: String) -> Result<(), &'static str> {
-    use std::fs;
+use clap::Parser;
+use std::fs;
+use std::io::{self, ErrorKind, Read, Write};
+use std::path::PathBuf;
 
-    let rom_bytes = match fs::read(input_file) {
-        Ok(b) => b,
-        Err(_) => return Err("Error reading input file. Does the file exist?"),
-    };
+// clap parser for our arguments
+#[derive(Parser)]
+struct Args {
+    #[arg(short, long)]
+    input: Option<PathBuf>,
+    #[arg(short, long)]
+    output: Option<PathBuf>,
+}
 
-    match fs::write(output_file, disassemble(rom_bytes)?) {
-        Ok(_) => Ok(()),
-        Err(_) => Err("Error writing output file. Is it being used by another process?"),
+enum InputOption {
+    File(PathBuf),
+    Stdin,
+}
+
+enum OutputOption {
+    File(PathBuf),
+    Stdout,
+}
+
+pub struct Config {
+    in_opt: InputOption,
+    out_opt: OutputOption,
+}
+
+impl Config {
+    pub fn make() -> Self {
+        let args = Args::parse();
+
+        let in_opt = match args.input {
+            Some(p) => InputOption::File(p),
+            None => InputOption::Stdin,
+        };
+        let out_opt = match args.output {
+            Some(p) => OutputOption::File(p),
+            None => OutputOption::Stdout,
+        };
+
+        Config { in_opt, out_opt }
     }
 }
 
-fn disassemble(assembled_bytes: Vec<u8>) -> Result<String, &'static str> {
+pub struct RunError {
+    pub msg: &'static str,
+}
 
+impl From<io::Error> for RunError {
+    fn from(e: io::Error) -> Self {
+        let msg = match e.kind() {
+            ErrorKind::NotFound => "File does not exist",
+            _ => "An unanticipated error was encountered while reading or writing to file",
+        };
+        RunError { msg }
+    }
+}
+
+impl From<&'static str> for RunError {
+    fn from(s: &'static str) -> Self {
+        let msg = s;
+        RunError { msg }
+    }
+}
+
+pub fn run(config: Config) -> Result<(), RunError> {
+    let rom_bytes = match config.in_opt {
+        InputOption::File(p) => fs::read(p)?,
+        InputOption::Stdin => {
+            let mut buf = Vec::new();
+            io::stdin().read_to_end(&mut buf)?;
+            buf
+        }
+    };
+    let instructions = disassemble(rom_bytes)?;
+    match config.out_opt {
+        OutputOption::File(f) => fs::write(f, instructions)?,
+        OutputOption::Stdout => {
+            io::stdout().write_all(instructions.as_bytes())?;
+        }
+    };
+    Ok(())
+}
+
+fn disassemble(assembled_bytes: Vec<u8>) -> Result<String, &'static str> {
     // error handling
     if assembled_bytes.is_empty() {
         return Err("Error parsing rom: empty rom");
@@ -30,7 +101,9 @@ fn disassemble(assembled_bytes: Vec<u8>) -> Result<String, &'static str> {
             if let [b1, b2] = chunk {
                 ((*b1 as u16) << 8) | (*b2 as u16)
             } else {
-                unreachable!("We handle this possiblity earlier in the function and return an error")
+                unreachable!(
+                    "We handle this possiblity earlier in the function and return an error"
+                )
             }
         })
         // convert instruction code to asm string

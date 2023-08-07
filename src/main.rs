@@ -1,19 +1,10 @@
-use std::env;
+use ch8disasm::{self, Config};
+use std::process;
 
-fn main(){
-    let mut args = env::args();
-    args.next();
-
-    let input_file = match args.next() {
-        Some(f) => f,
-        None => panic!("You must enter an input file"),
-    };
-    let output_file = match args.next() {
-        Some(f) => f,
-        None => panic!("You must enter an output file"),
-    };
-
-    if let Err(msg) = ch8disasm::read_write_asm_file(input_file, output_file) {
-        panic!("{}", msg);
+fn main() {
+    if let Err(run_error) = ch8disasm::run(Config::make()) {
+        eprintln!("{}", run_error.msg);
+        process::exit(1);
     }
+    process::exit(0);
 }
