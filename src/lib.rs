@@ -283,5 +283,5 @@ fn convert_instruction(inst: u16) -> String {
     }
 
     // instruction not found, probably a bitmap graphic or other data
-    String::from("ERR: ") + &format!("{:0>4X}", inst)
+    String::from("0x") + &format!("{:0>4X}", inst)
 }
