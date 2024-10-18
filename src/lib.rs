@@ -102,7 +102,7 @@ pub fn run(config: Config) -> Result<(), RunError> {
 
 /// Given a vector of bytes from a rom, return a string of disassembled instructions separated by
 /// newlines
-fn disassemble(assembled_bytes: Vec<u8>) -> Result<String, &'static str> {
+pub fn disassemble(assembled_bytes: Vec<u8>) -> Result<String, &'static str> {
     // error handling; We handle these here so we don't need awkward pattern matching later
     if assembled_bytes.is_empty() {
         return Err("Error parsing rom: empty rom");
@@ -139,7 +139,7 @@ fn disassemble(assembled_bytes: Vec<u8>) -> Result<String, &'static str> {
 /// Given a u16 representing an assembled chip8 instruction, return the human-readable string
 /// format of that instruction
 /// Instructions and format outlined at http://devernay.free.fr/hacks/chip8/C8TECH10.HTM
-fn convert_instruction(inst: u16) -> String {
+pub fn convert_instruction(inst: u16) -> String {
     // instructions with 16-bit opcodes and no arguments
     if inst == 0x00E0 {
         return String::from("CLS");
